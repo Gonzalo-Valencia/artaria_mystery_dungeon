@@ -1,0 +1,8 @@
+1. Sometimes a room in the corner is not connected
+
+2. Sometimes the zigzag makes a huge opening instead
+of a path if the rooms are less than 3 tiles away
+
+3. Enemies can spawn in stairs, items, and other enemies
+
+4. Items can spawn in stairs

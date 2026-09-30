@@ -1,0 +1,22 @@
+In Artaria Mystery Dungeon the player clears a procedurally generated dungeon floor by floor,
+leveling up, finding weapons, spells and various items that will make it easier to beat the different
+enemies found in this place.
+
+        tile_id = 25 - 1
+
+        if edge_id in [128]:
+            tile_id = 1 - 1
+        elif edge_id in [64,192,229,96]:
+            tile_id = 2 - 1
+        elif edge_id in [32]:
+           tile_id = 3 - 1
+        elif edge_id in [46,47,175]:
+            tile_id = 4 - 1
+        elif edge_id in [147,151,183]:
+            tile_id = 5 - 1
+        elif edge_id in [8,9,40,41]:
+            tile_id = 6 - 1
+        elif edge_id in [16,20,144,148]:
+           tile_id = 8 - 1
+        elif edge_id in [201]:
+            tile_id = 9 - 1
