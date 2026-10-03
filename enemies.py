@@ -84,6 +84,25 @@ class Enemy():
             ):
             self.aggro = True
 
+    def attack(self, dungeon, chara):
+        st.SFX().chara_attacked.play()
+        chara.hp -= self.dmg
+
+        dungeon.events.append( "The " + self.name + " dealt " + 
+                              str(self.dmg) + "dmg to Chara!" )
+
+
+    def act(self, dungeon, chara):
+        for key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_DOWN, pygame.K_UP):
+            newrect = gf.predict_next_rect(key, self.position)
+            if chara.rect == newrect:
+                break
+
+        if chara.rect == newrect:
+            self.attack(dungeon, chara)
+        else:
+            self.move(dungeon, chara)
+
 class EnemyChart():
 
     def __init__(self):
@@ -112,3 +131,11 @@ def render_enemies(dungeon, screen):
 
 
         screen.blit(tileset.image, enemy.position, cutout)
+
+
+class Corpse():
+
+    def __init__(self, position):
+
+        self.image = pygame.image.load(st.SpritePaths().item_path)
+        self.position = position

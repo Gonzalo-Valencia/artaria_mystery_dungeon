@@ -20,3 +20,11 @@ enemies found in this place.
            tile_id = 8 - 1
         elif edge_id in [201]:
             tile_id = 9 - 1
+
+
+        invers_direction = gf.invert_direction(self.direction)
+        before_rect = gf.predict_next_rect(invers_direction, self.rect)
+        before_vicinity = gf.get_vicinity(before_rect)
+        before_vicinity.append(before_rect)
+        walk_squares_before = [rect for rect in dungeon.tiles if rect in before_vicinity]
+        

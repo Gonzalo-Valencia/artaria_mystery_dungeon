@@ -1,6 +1,7 @@
 import random
 import pygame
 
+import game_functions as gf
 import settings as st
 import enemies
 import game_items
@@ -68,6 +69,14 @@ class Dungeon():
                          [self.stairs.position]
                          )
         #self.graph = {}
+
+        # List of strings explaining what happened lately
+        self.events = []
+
+        # List of corpses in the dungeon
+        self.corpses = []
+        self.corpses_positions = []
+        
 
     def choose_position(self):
         """Returns a random walkable tile inside the dungeon"""
@@ -331,10 +340,11 @@ class Dungeon():
                 # We cycle through all tiles
                 if edge in self.tiles:
                     pass
+                elif len([rect for rect in gf.get_vicinity(edge) if rect in self.tiles]) == 0:
+                    pass
                 else:
-                    if self.edge_clasification(edge) != -1:
-                        self.edges[self.edge_clasification(edge)].append(edge)
-
+                    key = random.choice([1,2,3])
+                    self.edges[key].append(edge)
 
     def edges_to_list(self):
         for key in self.edges.keys():
@@ -364,7 +374,7 @@ class Dungeon():
                 whatsquare = key[0]+1+(-key[1]+1)*5
                 self.screen.blit(tileset.image, square, tileset.tiles[whatsquare])
 
-    def render_edges(self, edges, tileset):
+    def render_edges_alt2(self, edges, tileset):
         # Edges is a dict
 
         for key in edges.keys():
@@ -373,9 +383,18 @@ class Dungeon():
                     self.screen.blit(tileset.image, square, tileset.tiles[key])
 
     def render_dungeon(self, tileset):
-        for tile in self.tiles:
-            self.render_rect(tile, tileset)
-        self.render_edges(self.edges, tileset)
+        #for tile in self.tiles:
+        #    self.screen.blit(tileset.image, tile, tileset.tiles[0])
+        for edge in self.edges_list:
+            self.screen.blit(tileset.image, edge, tileset.tiles[0])    
+
+        #for tile in self.tiles:
+        #   self.render_rect(tile, tileset)
+        #self.render_edges(self.edges, tileset)
+
+    def render_corpses(self):
+        for corpse in self.corpses:
+            self.screen.blit(pygame.image.load(st.SpritePaths().item_path), corpse.position)
 
     def recenter_dg(dungeon, chara):
         """Centers the character in some tile inside the dungeon"""
@@ -433,11 +452,24 @@ class Dungeon():
                     [self.stairs.position]
                     )
 
+        # List of corpses in the dungeon
+        self.corpses = []
+        self.corpses_positions = []
+
         self.recenter_dg(chara)
 
     def remove_enemy(self, enemy):
+        st.SFX().enemy_death.play()
         self.enemies.remove(enemy)
+        newcorpse = enemies.Corpse(enemy.position)
+        self.corpses.append(newcorpse)
+        self.corpses_positions.append(newcorpse.position)
+        
         self.enemies_positions_to_list()
+
+    def remove_corpse(self, corpse):
+        self.corpses.remove(corpse)
+        self.corpses_positions.remove(corpse.position)
 
     def remove_item(self, item):
         self.items.remove(item)
@@ -470,10 +502,15 @@ class Dungeon():
             if item.position == rect:
                 return item
 
-    def edge_clasification(self, rect):
+    def rect_to_corpse(self, rect):
 
-        """Given a rectangle in the dungeon edges"""
-        """It returns what kind of wall/corner is it"""
+        for corpse in self.corpses:
+            if corpse.position == rect:
+                return corpse
+
+    def get_vicinity(rect) -> list:
+
+        """Given a rectangle it returns all the rectangles around"""
 
         ts = st.GameSettings().tile_size
 
@@ -490,51 +527,4 @@ class Dungeon():
         wr = pygame.Rect(rect.left+ts, rect.top, ts, ts)
 
         #These are all the squares around the rect
-        around = [cul, wu, cur, wl, wr, cdl, wd, cdr]
-        #edges around
-        ea = []
-
-        if rect in self.tiles:
-            return None
-
-        edge_id = 24
-
-        for i in around:
-            if i in self.tiles:
-                ea.append(i)
-
-        if all(x in ea for x in [wu,wr,wl,wd]):
-            edge_id = 24
-        elif all(x in ea for x in [wu,wd]):
-            edge_id = 22
-        elif all(x in ea for x in [wr,wl]):
-            edge_id = 14
-        elif all(x in ea for x in [wu,wr]):
-            edge_id = 4
-        elif all(x in ea for x in [wu,wl]):
-            edge_id = 3
-        elif all(x in ea for x in [wd,wr]):
-            edge_id = 9
-        elif all(x in ea for x in [wd,wl]):
-            edge_id = 8
-        elif wd in ea:
-            edge_id = 1
-        elif wu in ea:
-            edge_id = 11
-        elif wl in ea:
-            edge_id = 7
-        elif wr in ea:
-            edge_id = 5
-        elif cul in ea:
-            edge_id = 12
-        elif cur in ea:
-            edge_id = 10
-        elif cdr in ea:
-            edge_id = 0
-        elif cdl in ea:
-            edge_id = 2
-        else:
-            edge_id = -1
-
-        return edge_id
-
+        return [cul, wu, cur, wl, wr, cdl, wd, cdr]

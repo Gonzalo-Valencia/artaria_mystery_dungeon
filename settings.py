@@ -5,53 +5,78 @@ class SpritePaths():
     #All of the paths for sprites
 
     def __init__(self):
-        self.chara_path = 'chara_sprites/chara_placeholder.bmp'
+        self.chara_path = 'creature_sprites/chara.bmp'
         self.bg_path = 'map_sprites/bg_placeholder.jpg'
-        self.tileset_path = 'map_sprites/floor1_tileset.bmp'
-        self.enemy_tileset_path = 'chara_sprites/enemies_tileset_placeholder.bmp'
-        self.stairs_path = 'map_sprites/stairs_placeholder.bmp'
-        self.item_path = 'chara_sprites/item_placeholder.bmp'
+        self.tileset_path = 'map_sprites/demo_tileset.bmp'
+        self.enemy_tileset_path = 'creature_sprites/enemies_demo.bmp'
+        self.stairs_path = 'map_sprites/stairs.bmp'
+        self.item_path = 'creature_sprites/corpse.bmp'
         self.cursor_path = 'ui_sprites/cursor_placeholder.bmp'
+        self.ui_overlay_path = 'ui_sprites/ui_overlay_placeholder.png'
 
 class UISettings():
     #Definition of all the UI settings
 
     def __init__(self):
         #Screen proportions
-        self.screen_width = 19*64
-        self.screen_height = 13*64
+        self.screen_width = 19*GameSettings().tile_size
+        self.screen_height = 13*GameSettings().tile_size
         self.screen_size = (self.screen_width, self.screen_height)
 
-        self.mini_screen_width = 13*64
-        self.mini_screen_height = 9*64
+        self.mini_screen_width = 13*GameSettings().tile_size
+        self.mini_screen_height = 9*GameSettings().tile_size
         self.mini_screen_size = (self.mini_screen_width,
                                  self.mini_screen_height)
 
+        self.i_screen_size = (4*32+8, 9*32)
+
         #Screen color
-        self.bg_color = (20,20,20)
+        self.bg_color = (0,0,0)
 
         #Text
-        self.menu_font = pygame.font.SysFont('Times New Roman', 48)
+        self.menu_font = pygame.font.SysFont('Times New Roman', 10)
+        self.small_font = pygame.font.SysFont('Times New Roman', 10)
         self.font_color = (245,245,245)
-        self.text_margin_left = 64+32
-        self.text_margin_up = 64
-        self.text_line_height = 64
+        self.text_margin_left = GameSettings().tile_size+16
+        self.text_margin_up = GameSettings().tile_size
+        self.text_line_height = GameSettings().tile_size
 
-        self.mini_screen_margins_left = 48
-        self.mini_screen_margins_up = 48
+        self.mini_screen_margins_left = 16
+        self.mini_screen_margins_up = 16
 
-        self.inventory_place_left = (self.mini_screen_margins_left+
-                                self.mini_screen_width + self.mini_screen_margins_left)
-        self.inventory_place_up = self.mini_screen_margins_up
+        self.inventory_place_left = (self.mini_screen_margins_left+self.mini_screen_margins_left+
+                                self.mini_screen_width)
+        self.inventory_place_up = 4*GameSettings().tile_size
         self.inventory_place = (self.inventory_place_left, self.inventory_place_up)
+
+        self.text_canvas_place = (self.mini_screen_margins_left,
+                                  self.mini_screen_margins_up*2 +
+                                  self.mini_screen_height-GameSettings().tile_size)
+
+
+class SFX():
+
+    def __init__(self):
+
+        self.chara_attack = pygame.mixer.Sound("sfx/chara_attack.wav")
+        self.chara_death = pygame.mixer.Sound("sfx/chara_death.wav")
+        self.chara_attacked = pygame.mixer.Sound("sfx/chara_attacked.wav")
+        self.enemy_death = pygame.mixer.Sound("sfx/enemy_death.wav")
+        self.menu_change = pygame.mixer.Sound("sfx/menu_change.wav")
+        self.menu_select = pygame.mixer.Sound("sfx/menu_select.wav")
+
 
 class GameSettings():
 
     def __init__(self):
 
         self.dungeon_dim = (30, 30) #cells per map
-        self.tile_size = 64
+        self.tile_size = 32
         self.mov_keys = [pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN]
+
+        self.act_keys = self.mov_keys + [pygame.K_k, pygame.K_a]
+
+        self.max_inventory_lines = 7
 
 class ItemSettings():
 
@@ -61,6 +86,7 @@ class ItemSettings():
 
         self.blackfire_dmg = 4
         self.whitefire_heal = 30
+        self.flower_san_heal = 30
 
 class Tilesets():
 

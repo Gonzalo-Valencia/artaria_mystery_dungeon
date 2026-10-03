@@ -32,6 +32,7 @@ class ItemChart():
     def __init__(self):
         self.floor1 = ["Blackfire",
                        "Whitefire",
+                       "A flower"
                        #"Incinerate",
                        #"Soul Bind",
                        #"Reality Bend",
@@ -54,7 +55,9 @@ class Item():
                 enemy.hp -= st.ItemSettings().blackfire_dmg
                 print(str(enemy.hp))
         elif self.name == "Whitefire":
-            chara.hp += 30
+            chara.hp += st.ItemSettings().whitefire_heal
+        elif self.name == "A flower":
+            chara.san += st.ItemSettings().flower_san_heal
 
 
 

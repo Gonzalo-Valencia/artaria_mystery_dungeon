@@ -1,0 +1,18 @@
+1. Add diagonal directions (rework direction system)
+2. Add R button to lock diagonal
+5. Add textbox with dialogue
+6. Add menu
+    6.1 item descriptions
+    6.2 possibility for more
+7. Add regeneration
+8. Add map on top
+9. Add sounds
+10. Add max life
+11. Regeneration
+
+
+....
+
+10. Add corpse on death
+11. UI
+12. Add animations

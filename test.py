@@ -1,51 +1,50 @@
+import sys
 import pygame
+
 import settings as st
+from chara import Chara
+from background import Background
+from tileset import Tileset
+from dungeon import Dungeon
+from enemies import generate_enemies
+import game_functions as gf
 import text
 
-# Initialize pygame
-pygame.init()
+""" def run_game():
+    # Make the character:
+    pygame.init()
+    pygame.display.set_caption("Artaria Mystery Dungeon")
+    screen = st.Abstract().screen2
+    chara = Chara(screen)
+    running = False
+    # Start the main loop for the game.
+    while True:
+        # Watch for keyboard and mouse events.
+        for event in pygame.event.get():
+            print(str(event))
+            if event.type == pygame.QUIT:
+                sys.exit()
+            elif event.type == pygame.KEYUP:
+                if event.key == pygame.K_RIGHT:
+                    running = False
+                print("keyup")
+            elif event.type == pygame.KEYDOWN:
+                print("keydown")
+                if event.key == pygame.K_RIGHT:
+                    running = True
+            elif running == True:
+                chara.rect.centerx += 1
 
-# Setup screen and canvas (done before the loop)
-canvas = pygame.Surface((400, 600))
-#realscreen = pygame.display.set_mode((800, 600), pygame.SCALED , vsync=1)
-realscreen = st.Abstract().screen2
-#clock = pygame.time.Clock()
-running = True
+        chara.blitme()
 
-# --- THE MAIN GAME LOOP ---
-while running:
-    
-    # 1. Event Handling (Happens once per frame)
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+        pygame.display.flip()
 
-    # 2. Clear canvas (Prevents smearing/flickering from past frames)
-    canvas.fill((30, 30, 30))
 
-    canvas.blit(pygame.image.load('chara_sprites/chara_placeholder.bmp'), (0,0))
-    # 3. Draw your game elements onto the canvas
-    # Example: pygame.draw.circle(canvas, (255, 0, 0), (400, 300), 50)
-    lines = ["Game Start", "Settings", "Quit"]
-    height_of_line = st.UISettings().text_margin_up
+run_game() """
 
-    canvas.fill(st.UISettings().bg_color)
-    for line in lines:
-        text.render_text(canvas, line, 
-                        (st.UISettings().text_margin_left,
-                        height_of_line,
-                        ))
-        height_of_line += st.UISettings().text_line_height
-    # 4. Clear the real screen
-    realscreen.fill((0, 0, 0))
 
-    # 5. Blit your canvas onto the real screen
-    realscreen.blit(canvas, (0, 0))
+a = (1,2)
+b = (2,3)
+a = b
 
-    # 6. FLIP THE DISPLAY (This must happen ONLY HERE, exactly once per loop)
-    pygame.display.flip()
-
-    # 7. Control frame rate (e.g., 60 FPS)
-    #clock.tick(60)
-
-pygame.quit()
+print(b)
