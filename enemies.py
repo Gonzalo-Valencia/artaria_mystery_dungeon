@@ -4,117 +4,188 @@ import settings as st
 import game_functions as gf
 
 
+
+def move(enemy, dungeon, chara):
+        """Tries to move the enemy"""
+        if enemy.paralyzed == False:
+            if gf.abs_distance(enemy.position, chara.rect) < 6*st.GameSettings().tile_size:
+                #if theyre in aggro, the go to you
+                moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]
+                optimal = False
+                while optimal == False and moves:
+                    #Thell chose at random whatever makes them close
+                    direction = random.choice(moves)
+                    moves.remove(direction)
+                    newrect = gf.predict_next_rect(direction, enemy.position)
+                    if (gf.abs_distance(newrect, chara.rect)
+                        < gf.abs_distance(enemy.position, chara.rect) and 
+                        gf.check_collission_future(direction, dungeon, enemy.position) == False
+                        ):
+                        #If its a legal move and they get close, they move. 
+                        # if not, they dont do anything
+                        gf.move_any(gf.invert_direction(direction), enemy.position)
+                        optimal = True
+            else:
+                direction = random.choice([(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)])
+                
+                if gf.check_collission_future(direction, dungeon, enemy.position) == False:
+                    gf.move_any(gf.invert_direction(direction), enemy.position)
+
+def flee(enemy, dungeon, chara):
+        if enemy.paralyzed == False:
+            if gf.abs_distance(enemy.position, chara.rect) < 6*st.GameSettings().tile_size:
+                #if theyre in aggro, the go to you
+                moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]
+                optimal = False
+                while optimal == False and moves:
+                    #Thell chose at random whatever makes them close
+                    direction = random.choice(moves)
+                    moves.remove(direction)
+                    newrect = gf.predict_next_rect(direction, enemy.position)
+                    if (gf.abs_distance(newrect, chara.rect)
+                        > gf.abs_distance(enemy.position, chara.rect) and 
+                        gf.check_collission_future(direction, dungeon, enemy.position) == False
+                        ):
+                        #If its a legal move and they get close, they move. 
+                        # if not, they dont do anything
+                        gf.move_any(gf.invert_direction(direction), enemy.position)
+                        optimal = True
+            else:
+                direction = random.choice([(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)])
+                
+                if gf.check_collission_future(direction, dungeon, enemy.position) == False:
+                    gf.move_any(gf.invert_direction(direction), enemy.position)
+
+def attack(enemy, dungeon, chara):
+    st.SFX().chara_attacked.play()
+    chara.hp -= enemy.dmg
+
+    message = ("The " + enemy.name + " dealt " + 
+                        str(enemy.dmg) + "dmg to Chara!")
+    dungeon.rerender_text_canvas(message)
+    #dungeon.events.append( "The " + enemy.name + " dealt " + 
+    #                    str(enemy.dmg) + "dmg to Chara!" )
+
+def normal_behaviour(enemy, dungeon, chara):
+    for direction in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]:
+        newrect = gf.predict_next_rect(direction, enemy.position)
+        newdirection = direction
+        if chara.rect == newrect:
+            break
+
+    if chara.rect == newrect:
+        if newdirection in [(1,1), (-1,1), (1,-1), (-1,-1)]:
+            if (gf.predict_next_rect((newdirection[0], 0), enemy.position) in dungeon.tiles and
+                gf.predict_next_rect((0, newdirection[1]), enemy.position) in dungeon.tiles):
+                attack(enemy, dungeon, chara)
+            else:
+                move(enemy, dungeon, chara)
+        else:
+            attack(enemy, dungeon, chara)
+    else:
+        # If it doesnt find chara, then
+        move(enemy, dungeon, chara)
+
+def corpse_eater_behaviour(enemy, dungeon, chara):
+
+    closest_corpse_pos = gf.find_closest(enemy.position, *dungeon.corpses_positions)
+    if closest_corpse_pos != enemy.position:
+        closest_corpse = dungeon.rect_to_corpse(closest_corpse_pos)
+
+    
+    
+
+    if enemy.hp < enemy.max_hp*0.5:
+        # If its life is low, it finds a corpse and goes to consume it
+        pass
+
+def coward_behaviour(enemy, dungeon, chara):
+    # If its life is low, it will flee
+    if enemy.hp < enemy.max_hp*0.5:
+        flee(enemy, dungeon, chara)
+    else:
+        for direction in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]:
+            newrect = gf.predict_next_rect(direction, enemy.position)
+            newdirection = direction
+            if chara.rect == newrect:
+                break
+        if chara.rect == newrect:
+            if newdirection in [(1,1), (-1,1), (1,-1), (-1,-1)]:
+                if (gf.predict_next_rect((newdirection[0], 0), enemy.position) in dungeon.tiles and
+                    gf.predict_next_rect((0, newdirection[1]), enemy.position) in dungeon.tiles):
+                    attack(enemy, dungeon, chara)
+                else:
+                    move(enemy, dungeon, chara)
+            else:
+                attack(enemy, dungeon, chara)
+        else:
+            # If it doesnt find chara, then
+            move(enemy, dungeon, chara)
+
+
 class Enemy():
 
-    def __init__(self):
+    def __init__(self, name = "missingNo", hp = 0, dmg = 0, e_id = -1,
+                 behaviour = normal_behaviour, position = pygame.Rect(0,0,0,0),
+                 ):
 
 
         # Load the enemy image and get its rect.
         self.image = pygame.image.load(st.SpritePaths().chara_path)
         self.rect = self.image.get_rect()
+        
 
-        self.name = "missingNo"
-        self.hp = 0
-        self.dmg = 0
-        self.id = -1
-        self.position = pygame.Rect(0,0,0,0)
-
-        self.aggro = False
-
-    def assign_stats(self, hp, dmg, e_id):
-        """assigns stats to a blank enemy"""
+        self.name = name
         self.hp = hp
+        self.max_hp = hp
         self.dmg = dmg
-        self.id = e_id
+        self.id = e_id 
+        self.position = position
 
-    def name_to_stats(self, name):
+        # Statuses ------------
+        # Unable to move
+        self.paralyzed = False
+        self.poisoned = False
 
-        if name == 'slime':
-            self.name = name
-            self.assign_stats(1,5,0)
-        if name == 'skelet':
-            self.name = name
-            self.assign_stats(2,10,1)
-        if name == 'mage':
-            self.name = name
-            self.assign_stats(4,15,2)
-        if name == 'dragon':
-            self.name = name
-            self.assign_stats(6,20,3)
+        self.act = lambda dungeon, chara: behaviour(self, dungeon, chara)
 
-    def clash(self, dungeon, chara):
-        self.hp -= chara.dmg
-        print(self.name +": yeouch!")
-        if self.hp <= 0:
-            dungeon.remove_enemy(self)
-            print(self.name +": DEAD!")
-        else:
-            chara.hp -= self.dmg
-            print("Chara: yeouch!")
+        #From 1 to 60
+        self.anim_loop = 0
 
-    def move(self, dungeon, chara):
-        """Tries to move the enemy"""
-
-        if gf.abs_distance(self.position, chara.rect) < 6*st.GameSettings().tile_size:
-            #if theyre in aggro, the go to you
-            moves = [pygame.K_DOWN, pygame.K_UP, pygame.K_LEFT, pygame.K_RIGHT]
-            optimal = False
-            while optimal == False and moves:
-                #Thell chose at random whatever makes them close
-                direction = random.choice(moves)
-                moves.remove(direction)
-                newrect = gf.predict_next_rect(direction, self.position)
-                if (gf.abs_distance(newrect, chara.rect)
-                     < gf.abs_distance(self.position, chara.rect) and 
-                     gf.check_collission_future(direction, dungeon, self.position) == False
-                     ):
-                    #If its a legal move and they get close, they move. 
-                    # if not, they dont do anything
-                    gf.move_any(gf.invert_direction(direction), self.position)
-                    optimal = True
-        else:
-            direction = random.choice([pygame.K_DOWN, pygame.K_UP, pygame.K_LEFT, pygame.K_RIGHT])
-            
-            if gf.check_collission_future(direction, dungeon, self.position) == False:
-                gf.move_any(gf.invert_direction(direction), self.position)
-
-    def aggro(self, dungeon, chara):
-        if (abs(chara.rect.centerx-self.position.centerx) < 6 or
-            abs(chara.rect.centery-self.position.centery) < 6
-            ):
-            self.aggro = True
-
-    def attack(self, dungeon, chara):
-        st.SFX().chara_attacked.play()
-        chara.hp -= self.dmg
-
-        dungeon.events.append( "The " + self.name + " dealt " + 
-                              str(self.dmg) + "dmg to Chara!" )
-
-
-    def act(self, dungeon, chara):
-        for key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_DOWN, pygame.K_UP):
-            newrect = gf.predict_next_rect(key, self.position)
-            if chara.rect == newrect:
-                break
-
-        if chara.rect == newrect:
-            self.attack(dungeon, chara)
-        else:
-            self.move(dungeon, chara)
 
 class EnemyChart():
 
     def __init__(self):
         self.floor1 = ['slime', 'skelet', 'mage', 'dragon']
 
+class Bestiary():
+
+    def __init__(self):
+        self.slime = Enemy('slime', 1, 5, 0)
+        self.skelet = Enemy('skelet', 2, 10, 1)
+        self.mage = Enemy('mage', 4, 15, 2, behaviour=coward_behaviour)
+        self.dragon = Enemy('dragon', 6, 20, 3)
+
+        self.floor1 = [self.slime, self.skelet, self.mage, self.dragon]
+
+def name_to_stats(name):
+    if name == 'slime':
+        return Enemy(name, 1,5,0)
+    if name == 'skelet':
+        return Enemy(name, 2,10,1)
+    if name == 'mage':
+        return Enemy(name, 4,15,2)
+    if name == 'dragon':
+        return Enemy(name, 6,20,3)
+
+
 def generate_enemies(dungeon):
     weight = 0
     generated_enemies = []
     while weight < 17:
-        name_choice = random.choice(EnemyChart().floor1)
-        e_choice = Enemy()
-        e_choice.name_to_stats(name_choice)
+        #name_choice = random.choice(EnemyChart().floor1)
+        #e_choice = name_to_stats(name_choice)
+        e_choice = random.choice(Bestiary().floor1)
         e_choice.position = dungeon.choose_position()
 
         generated_enemies.append(e_choice)
@@ -126,12 +197,19 @@ def generate_enemies(dungeon):
 def render_enemies(dungeon, screen):
 
     for enemy in dungeon.enemies:
-        tileset = st.Tilesets().enemy_ts
-        cutout = tileset.tiles[enemy.id]
+        
+        if enemy.anim_loop> 60:
+            enemy.anim_loop = 1
+        else:
+            enemy.anim_loop +=1
+
+        if enemy.anim_loop <= 30:
+            cutout = st.Tilesets().enemy_ts.tiles[enemy.id+8]
+        else:
+            cutout = st.Tilesets().enemy_ts.tiles[enemy.id]
 
 
-        screen.blit(tileset.image, enemy.position, cutout)
-
+        screen.blit(st.Tilesets().enemy_ts.image, enemy.position, cutout)
 
 class Corpse():
 

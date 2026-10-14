@@ -5,6 +5,8 @@ import game_functions as gf
 import settings as st
 import enemies
 import game_items
+import render_screen as rs
+from collections import defaultdict
 
 class Dungeon():
 
@@ -13,7 +15,17 @@ class Dungeon():
         self.screen = screen
         self.chara = chara
 
+        #How much seconds does each frame last, multiplied by 60
+        #Consider that the game "should" run at 60fps.
+        #So 1s = 60 fps.
+        #dt measures the ammount of (animation) frames per (real game) loops (frames)
+        self.dt = 0
+
+        self.placeholder = pygame.image.load('creature_sprites/chara_placeholder.bmp')
+
         self.tilesize = st.GameSettings().tile_size
+
+        self.tileset = st.Tilesets().dungeon_long_ts
         
         self.dimensions = st.GameSettings().dungeon_dim
         #self.x_division = random.randint(2,8)
@@ -44,12 +56,16 @@ class Dungeon():
         # Ex: { (-1,1) : all left upper corners, (-1,0) : all left walls, ....}
         self.edges = {}
         self.edges[-1] = []
-        for i in range(25):
+        for i in range(32):
             self.edges[i] = []
+        self.edges_list=[]
         self.get_edges()
 
-        self.edges_list=[]
-        self.edges_to_list()
+        self.walls_canvas = rs.render_dungeon_walls(self)
+        self.game_canvas = pygame.Surface(st.UISettings().mini_screen_size, pygame.SRCALPHA)
+        self.enemy_canvas = pygame.Surface(st.UISettings().mini_screen_size, pygame.SRCALPHA)
+        #self.edges_list=[]
+        #self.edges_to_list()
 
         # List of enemies
         self.enemies = enemies.generate_enemies(self)
@@ -61,22 +77,109 @@ class Dungeon():
         self.item_positions = []
         self.item_positions_to_list()
 
-        self.stairs = game_items.Stairs(screen)
+        #self.stairs = game_items.Stairs(screen)
+        self.stairs = game_items.Stairs(self.game_canvas)
         self.stairs.position = self.choose_position()
 
         self.movables = (self.tiles + self.edges_list +
                          self.enemies_positions + self.item_positions +
-                         [self.stairs.position]
+                         [self.stairs.position] + self.rooms
                          )
         #self.graph = {}
 
         # List of strings explaining what happened lately
         self.events = []
+        self.events_canvas = rs.render_text_canvas(self)
 
         # List of corpses in the dungeon
         self.corpses = []
         self.corpses_positions = []
+
+
+        # list of animations to blit at the end of turn
+        self.anim_list = defaultdict(list)
+        self.anim_list[0] = []
+
+        # Pre rendered things
+
+
+    def rerender_text_canvas(self, message = ""):
+        """Adds a message to the text canvas"""
+        if message != "":
+            self.events.append(message)
+        self.events_canvas = rs.render_text_canvas(self)
+
+    def load_anims(self, image, position, duration, frame = 0):
+        self.anim_list[frame].append(rs.Animation(image, position, duration))       
+
+    def advance_anims_time(self, i, rest_list):
+        new_rest_list = []
+        for j in range(len(self.anim_list[i])):
+            if j < len(rest_list) and rest_list[j]<0:
+                self.anim_list[i][j].duration += rest_list[j]
+            rest = self.anim_list[i][j].duration
+            new_rest_list.append(rest)
+        """             if anim.duration <= 0:
+                rest = anim.duration """
+
+        return new_rest_list
+    
+    def remove_anims(self):
+        flag = True
+        if any(anim.duration <= 0 for anim in self.anim_list[0]):
+            for anim in self.anim_list[0]:
+                if anim.duration <= 0:
+                    self.anim_list[0].remove(anim)
+            flag = False
+        if len(self.anim_list[0]) == 0:
+            for key in range(len(self.anim_list.keys())-1):
+                self.anim_list[key] = self.anim_list[key+1][:]
+
+            del self.anim_list[len(self.anim_list)-1]
+
+        return flag
+
+
+    def advance_anims_alt(self):
+        #We remove corresponding time from each anim
+        #If theres no time, we remove the anim
+        for anim in self.anim_list[0]:
+            anim.duration -= self.dt
+            if anim.duration <= 0:
+                self.anim_list[0].remove(anim)
+
+        if len(self.anim_list[0]) == 0:
+            for key in range(len(self.anim_list.keys())-1):
+                self.anim_list[key] = self.anim_list[key+1][:]
+
+            del self.anim_list[len(self.anim_list)-1]
+    
+    def advance_anims(self):
+        rest_list = []
+        for i in range(len(self.anim_list[0])):
+            #rest_list.append(-1)
+            rest_list.append(-self.dt)
+
+        new_rest_list = self.advance_anims_time(0, rest_list)
+
+        counter = 1
+        while any(x < 0 for x in new_rest_list):
+            #print(new_rest_list)
+            new_rest_list = self.advance_anims_time(counter, new_rest_list)
+            counter += 1
+
+        flag = self.remove_anims()
+        while flag == False:
+            #print(flag)
+            flag = self.remove_anims()
         
+
+    def blit_anims(self):
+        if len(self.anim_list[0]) != 0:
+            for anim in self.anim_list[0]:
+                self.game_canvas.blit(anim.image, anim.position)
+
+            self.advance_anims()
 
     def choose_position(self):
         """Returns a random walkable tile inside the dungeon"""
@@ -329,7 +432,7 @@ class Dungeon():
                     # down right
                     self.edges[(-1,1)].append(pygame.Rect(i,j,ts,ts))
 
-    def get_edges(self):
+    def get_edges_alt_alt(self):
         """puts all edge tiles into the self.edges dictionary"""
         ts = self.tilesize
 
@@ -345,6 +448,44 @@ class Dungeon():
                 else:
                     key = random.choice([1,2,3])
                     self.edges[key].append(edge)
+
+    def get_edges(self):
+        """puts all edge tiles into the self.edges dictionary"""
+        ts = self.tilesize
+
+
+
+        for i in range(-ts, self.dimensions[0]*ts, ts):
+            for j in range(-ts, self.dimensions[1]*ts, ts):
+
+                edge = pygame.Rect(i,j,ts,ts)
+                # We cycle through all tiles
+                if edge in self.tiles:
+                    pass
+                elif len([rect for rect in gf.get_vicinity(edge) if rect in self.tiles]) == 0:
+                    pass
+                else:
+
+                    self.edges_list.append(edge)
+
+        for edge in self.edges_list:
+            rand = random.randrange(0,8)
+            if gf.predict_next_rect((1,0), edge) in self.tiles:
+                self.edges[2*8 + rand].append(edge)
+            if gf.predict_next_rect((-1,0), edge) in self.tiles:
+                self.edges[3*8 + rand].append(edge)
+            if (gf.predict_next_rect((0,1), edge) in self.tiles or
+                (gf.predict_next_rect((0,1), edge) in self.edges_list and
+                 gf.predict_next_rect((0,-1), edge) not in self.edges_list and
+                 gf.predict_next_rect((0,-1), edge) not in self.tiles
+                 )):
+                self.edges[rand].append(edge)
+            if (gf.predict_next_rect((0,-1), edge) in self.tiles or
+                (gf.predict_next_rect((0,-1), edge) in self.edges_list and
+                 gf.predict_next_rect((0,1), edge) not in self.edges_list and
+                 gf.predict_next_rect((0,1), edge) not in self.tiles)):
+                self.edges[8 + rand].append(edge)
+
 
     def edges_to_list(self):
         for key in self.edges.keys():
@@ -382,7 +523,7 @@ class Dungeon():
                 for square in edges[key]:
                     self.screen.blit(tileset.image, square, tileset.tiles[key])
 
-    def render_dungeon(self, tileset):
+    def render_dungeon_alt(self, tileset):
         #for tile in self.tiles:
         #    self.screen.blit(tileset.image, tile, tileset.tiles[0])
         for edge in self.edges_list:
@@ -392,24 +533,36 @@ class Dungeon():
         #   self.render_rect(tile, tileset)
         #self.render_edges(self.edges, tileset)
 
+    def render_dungeon(self, tileset):
+
+        for key, values in self.edges.items():
+            for edge in values:
+                edge_im_pos = pygame.Rect(edge.left,edge.top-st.GameSettings().tile_size
+                                          ,st.GameSettings().tile_size,st.GameSettings().tile_size)
+                self.screen.blit(self.tileset.image, edge_im_pos, self.tileset.tiles[key])
+
+
+
     def render_corpses(self):
         for corpse in self.corpses:
-            self.screen.blit(pygame.image.load(st.SpritePaths().item_path), corpse.position)
+            self.game_canvas.blit(pygame.image.load(st.SpritePaths().item_path), corpse.position)
 
-    def recenter_dg(dungeon, chara):
+    def recenter_dg(self, chara):
         """Centers the character in some tile inside the dungeon"""
         # 1. given a position to start the character
         # 2. Moves the whole dungeon so that that position is the center
 
-        chara_position = dungeon.choose_position() # absolute relative desired position
+        chara_position = self.choose_position() # absolute relative desired position
         screen_center = chara.rect # this is saved in chara position
 
         h_mov = chara_position.left - screen_center.left
         v_mov = chara_position.top - screen_center.top
 
-        for game_object in dungeon.movables:
+        for game_object in self.movables:
             game_object.centerx -= h_mov
             game_object.centery -= v_mov
+
+        self.walls_canvas = rs.render_dungeon_walls(self)
 
     def reset_dungeon(self, chara):
         # Collection of the rooms as rects
@@ -426,14 +579,24 @@ class Dungeon():
 
         # All edge non-walkable tiles
         # Ex: { (-1,1) : all left upper corners, (-1,0) : all left walls, ....}
-        self.edges = {}
+        """self.edges = {}
         self.edges[-1] = []
         for i in range(25):
             self.edges[i] = []
         self.get_edges()
 
         self.edges_list=[]
-        self.edges_to_list()
+        self.edges_to_list() """
+
+
+        self.edges = {}
+        self.edges[-1] = []
+        for i in range(32):
+            self.edges[i] = []
+        self.edges_list=[]
+        self.get_edges()
+
+        self.walls_canvas = rs.render_dungeon_walls(self)
 
         # List of enemies
         self.enemies = enemies.generate_enemies(self)
@@ -444,12 +607,12 @@ class Dungeon():
         self.item_positions = []
         self.item_positions_to_list()
 
-        self.stairs = game_items.Stairs(self.screen)
+        self.stairs = game_items.Stairs(self.game_canvas)
         self.stairs.position = self.choose_position()
 
         self.movables = (self.tiles + self.edges_list +
                     self.enemies_positions + self.item_positions +
-                    [self.stairs.position]
+                    [self.stairs.position] + self.rooms
                     )
 
         # List of corpses in the dungeon

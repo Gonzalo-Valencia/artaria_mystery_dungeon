@@ -5,6 +5,17 @@ import time
 import settings as st
 import game_functions as gf
 import text
+import render_screen as rs
+
+def update_flesh_page():
+    """It updates the skills usable in the flesh page"""
+    flesh_skills = ["Flesh Sword", "Blood Burst"
+    ]
+    #Blood burst heals you
+
+    #Flesh sword is a sword
+
+
 
 class Chara():
 
@@ -20,23 +31,37 @@ class Chara():
         self.rect = self.image.get_rect()
         self.screen_rect = screen.get_rect()
 
+        self.tileset = st.Tilesets().chara_ts
+
         #Start each new character at the bottom center of the screen
-        #self.rect.centerx = self.screen_rect.centerx
-        #self.rect.centery = self.screen_rect.centery
-        self.rect.centerx = self.screen_rect.width/2
-        self.rect.centery = self.screen_rect.height/2
+
+        #self.rect.centerx = self.screen_rect.width/2
+        #self.rect.centery = self.screen_rect.height/2
+
+        self.rect.left = 6*st.GameSettings().tile_size
+        self.rect.top = 4*st.GameSettings().tile_size
 
         self.locked = False
         self.running = False
         self.mov_key_pressed = False
         self.a_pressed = False
         self.inventory_open = False
+        self.has_moved_this_turn = False
+        self.diagonal_locked = False
+
+        #Makes it impossible to receibe buttondown and such more than
+        # 6 times per second (once every 10 frames)
+        self.buffer = 0
+        self.buffer_bool = False
 
         # Save the direction of the character as a "vector"
-        self.direction = pygame.K_DOWN
+        self.direction = (0,1)
         # First coordinate is horizontal
         # Second is vertical
         # Follow the same logic as coordinates in screen
+
+        # Used for automatic movement
+        self.movement_counter = 0
 
         self.hp = 60
         self.max_hp = 60
@@ -45,23 +70,52 @@ class Chara():
         self.hp_regen = 0.25
         self.san_anti_regen = 0.25
         self.dmg = 1
+
         self.floor = 1
+        self.floor_canvas = rs.render_floor_canvas(self)
 
         self.inventory = []
         self.inventory_page = 1
         self.max_pages = 3
 
         self.flesh = 0
+        self.flesh_canvas = rs.render_flesh_canvas(self)
 
+        self.inventory_banner = pygame.image.load(st.SpritePaths().inventory_banner_path)
+        self.cursor_void = pygame.image.load(st.SpritePaths().cursor_path).convert_alpha()
+        self.cursor_full = pygame.image.load(st.SpritePaths().cursor_full_path).convert_alpha()
+        
         #The ui overlay is loaded just once
         self.ui_overlay = pygame.image.load(st.SpritePaths().ui_overlay_path).convert_alpha()
+        #Surfaces:
+        self.controls_page = rs.render_controls_page()
+        self.inventory_canvas = rs.render_inventory_canvas(self)
+        self.black_margins = pygame.image.load(st.SpritePaths().black_margins).convert_alpha()
+        self.life_bars = pygame.image.load(st.SpritePaths().life_bars).convert_alpha()
+
+        self.life_bar_oclusor = pygame.Surface((0, 0))
+        self.life_bar_oclusor_place = (0,0)
+
+        self.san_bar_oclusor = pygame.Surface((0, 0))
+        self.san_bar_oclusor_place = (0,0)
 
         # In which line the cursor is (starting from 1)
         self.cursor_position = 1
 
-    def blitme(self):
+    def blitme_alt(self):
         """Draw the character at its current location."""
         self.screen.blit(self.image, self.rect)
+
+    def blitme(self, screen):
+        number = self.direction[0]+1+(self.direction[1]+1)*3
+        if number > 4:
+            number = number-1
+        elif number == 4:
+            number = 6
+        cutout = self.tileset.tiles[number]
+
+
+        screen.blit(self.tileset.image, self.rect, cutout)
 
     def get_direction_vector(self) -> tuple:
         if self.direction == pygame.K_UP:
@@ -79,25 +133,34 @@ class Chara():
     def attack(self, dungeon):
         """Make the player attack"""
         enemy = self.enemy_infront(dungeon)
-        corpse = self.corpse_infornt(dungeon)
-
-        message = "Chara: Attacked"
+        corpse = self.corpse_infront(dungeon)
 
         if corpse != None:
             st.SFX().chara_attack.play()
             dungeon.remove_corpse(corpse)
 
             self.flesh += 1
+            self.flesh_canvas = rs.render_flesh_canvas(self)
 
         if enemy != None:
-            st.SFX().chara_attack.play()
-            enemy.hp -= self.dmg
-            #enemy.clash(dungeon, self)
 
-            dungeon.events.append("Chara dealt "+ str(self.dmg) + " to the " + enemy.name + "!")
-            print("Enemy hp: " + str(enemy.hp))
+            if self.direction in [(1,1), (-1,1), (1,-1), (-1,-1)]:
+                if (gf.predict_next_rect((self.direction[0], 0), self.rect) in dungeon.tiles and
+                    gf.predict_next_rect((0, self.direction[1]), self.rect) in dungeon.tiles):
+                    self.do_damage(dungeon, enemy)
+            else:
+                self.do_damage(dungeon, enemy)
+        else:
+            dungeon.rerender_text_canvas("Chara attacked nothing!")
 
         self.a_pressed = True
+
+    def do_damage(self, dungeon, enemy):
+        st.SFX().chara_attack.play()
+        enemy.hp -= self.dmg
+        #enemy.clash(dungeon, self)
+        dungeon.rerender_text_canvas("Chara dealt "+ str(self.dmg) + " to the " + enemy.name + "!")
+
 
     def enemy_infront(self, dungeon):
             charadir = self.direction
@@ -108,7 +171,7 @@ class Chara():
 
             return enemy
 
-    def corpse_infornt(self, dungeon):
+    def corpse_infront(self, dungeon):
             newrect = gf.predict_next_rect(self.direction, self.rect)
 
             corpse = dungeon.rect_to_corpse(newrect) 
@@ -122,6 +185,7 @@ class Chara():
             item = self.inventory.pop(self.cursor_position-1)
             print(item.name + " used!")
             item.items_use(self, dungeon)
+            self.inventory_canvas = rs.render_inventory_canvas(self)
 
     def in_danger(self, dungeon):
 
@@ -134,25 +198,17 @@ class Chara():
 
         #If theres an enemy close
         if [rect for rect in dungeon.enemies_positions if rect in next_vicinity]:
-            print("ENEMY!")
             return True
         #Or the stairs
         if dungeon.stairs.position in next_vicinity:
-            print("STAIRS!")
             return True
         #Or an item
         if [rect for rect in dungeon.item_positions if rect in next_vicinity]:
-            print("ITEM!")
             return True
-        #Or if you're about to turn
-        walk_squares_now = [rect for rect in dungeon.tiles if rect in vicinity]
-        walk_squares_next = [rect for rect in dungeon.tiles if rect in next_vicinity]
-
         if nextrect in dungeon.edges_list:
-            print("WALL IN FRONT!")
             return True
 
-        if self.direction == pygame.K_LEFT:
+        if self.direction == (-1,0):
             #If youre moving left
 
             #And you coud turn up or down
@@ -160,32 +216,28 @@ class Chara():
                 vicinity[1] in dungeon.tiles) or 
                 (vicinity[7] in dungeon.edges_list and
                  vicinity[6] in dungeon.tiles)
-                ):
-                print("TURN")             
+                ):           
                 return True
-        elif self.direction == pygame.K_RIGHT:
+        elif self.direction == (-1,0):
             if ((vicinity[0] in dungeon.edges_list and
                 vicinity[1] in dungeon.tiles) or 
                 (vicinity[5] in dungeon.edges_list and
                  vicinity[6] in dungeon.tiles)
-                ):             
-                print("TURN")      
+                ):               
                 return True
-        elif self.direction == pygame.K_UP:
+        elif self.direction == (0,-1):
             if ((vicinity[5] in dungeon.edges_list and
                 vicinity[3] in dungeon.tiles) or 
                 (vicinity[7] in dungeon.edges_list and
                  vicinity[4] in dungeon.tiles)
-                ):
-                print("TURN")      
+                ):   
                 return True
-        elif self.direction == pygame.K_DOWN:
+        elif self.direction == (0,1):
             if ((vicinity[0] in dungeon.edges_list and
                 vicinity[3] in dungeon.tiles) or 
                 (vicinity[2] in dungeon.edges_list and
                  vicinity[4] in dungeon.tiles)
-                ):
-                print("TURN")              
+                ):         
                 return True
         
         

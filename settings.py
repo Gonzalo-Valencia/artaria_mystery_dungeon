@@ -1,5 +1,6 @@
 import pygame
 import e_tileset
+import tileset as ts
 
 class SpritePaths():
     #All of the paths for sprites
@@ -8,11 +9,19 @@ class SpritePaths():
         self.chara_path = 'creature_sprites/chara.bmp'
         self.bg_path = 'map_sprites/bg_placeholder.jpg'
         self.tileset_path = 'map_sprites/demo_tileset.bmp'
-        self.enemy_tileset_path = 'creature_sprites/enemies_demo.bmp'
+        self.enemy_tileset_path = 'creature_sprites/enemies_placeholder.bmp'
         self.stairs_path = 'map_sprites/stairs.bmp'
         self.item_path = 'creature_sprites/corpse.bmp'
-        self.cursor_path = 'ui_sprites/cursor_placeholder.bmp'
-        self.ui_overlay_path = 'ui_sprites/ui_overlay_placeholder.png'
+        self.cursor_path = 'ui_sprites/cursor_void.png'
+        self.ui_overlay_path = 'ui_sprites/ui_overlay.png'
+        self.chara_tileset_path = 'creature_sprites/chara_tileset.bmp'
+        self.fire_path = 'special_effects/fire_placeholder.bmp'
+        self.black_margins = 'ui_sprites/black_margins.png'
+        self.life_bars = 'ui_sprites/life_bars.png'
+        self.inventory_banner_path = 'ui_sprites/inventory_banner.bmp'
+        self.cursor_full_path = 'ui_sprites/cursor_full.png'
+        self.dungeon_tileset_path = 'map_sprites/dungeon_tileset.png'
+        self.main_menu_path = 'ui_sprites/main_menu_placeholder.bmp'
 
 class UISettings():
     #Definition of all the UI settings
@@ -23,35 +32,34 @@ class UISettings():
         self.screen_height = 13*GameSettings().tile_size
         self.screen_size = (self.screen_width, self.screen_height)
 
-        self.mini_screen_width = 13*GameSettings().tile_size
-        self.mini_screen_height = 9*GameSettings().tile_size
+        self.mini_screen_width = 18*GameSettings().tile_size
+        self.mini_screen_height = 12*GameSettings().tile_size
         self.mini_screen_size = (self.mini_screen_width,
                                  self.mini_screen_height)
 
-        self.i_screen_size = (4*32+8, 9*32)
+
 
         #Screen color
         self.bg_color = (0,0,0)
 
         #Text
-        self.menu_font = pygame.font.SysFont('Times New Roman', 10)
-        self.small_font = pygame.font.SysFont('Times New Roman', 10)
+        self.menu_font = pygame.font.SysFont('Tiny5', 25)
+        self.small_font = pygame.font.SysFont('Tiny5', 16)
         self.font_color = (245,245,245)
         self.text_margin_left = GameSettings().tile_size+16
         self.text_margin_up = GameSettings().tile_size
-        self.text_line_height = GameSettings().tile_size
+        self.text_line_height = 30
 
         self.mini_screen_margins_left = 16
         self.mini_screen_margins_up = 16
 
-        self.inventory_place_left = (self.mini_screen_margins_left+self.mini_screen_margins_left+
-                                self.mini_screen_width)
-        self.inventory_place_up = 4*GameSettings().tile_size
-        self.inventory_place = (self.inventory_place_left, self.inventory_place_up)
+        self.i_screen_size = (150, 278)
+        #self.inventory_place_left = (self.mini_screen_margins_left+self.mini_screen_margins_left+
+                                #self.mini_screen_width)
+        #self.inventory_place_up = 4*GameSettings().tile_size
+        self.inventory_place = (441,121)
 
-        self.text_canvas_place = (self.mini_screen_margins_left,
-                                  self.mini_screen_margins_up*2 +
-                                  self.mini_screen_height-GameSettings().tile_size)
+        self.text_canvas_place = (17, 313)
 
 
 class SFX():
@@ -73,6 +81,9 @@ class GameSettings():
         self.dungeon_dim = (30, 30) #cells per map
         self.tile_size = 32
         self.mov_keys = [pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN]
+        self.mov_buttons = [ pygame.HAT_LEFT, pygame.HAT_DOWN, pygame.HAT_LEFTDOWN,
+                            pygame.HAT_UP, pygame.HAT_LEFTUP, pygame.HAT_RIGHT,
+                            pygame.HAT_RIGHTDOWN, pygame.HAT_RIGHTUP]
 
         self.act_keys = self.mov_keys + [pygame.K_k, pygame.K_a]
 
@@ -87,12 +98,17 @@ class ItemSettings():
         self.blackfire_dmg = 4
         self.whitefire_heal = 30
         self.flower_san_heal = 30
+        self.incinerate_dmg = 3
+        self.rot_dmg = 1
 
 class Tilesets():
 
     def __init__(self):
 
+        self.dungeon_ts = ts.Tileset(SpritePaths().tileset_path)
         self.enemy_ts = e_tileset.EnemyTileset()
+        self.chara_ts = ts.Tileset(SpritePaths().chara_tileset_path)
+        self.dungeon_long_ts = ts.Long_Tileset(SpritePaths().dungeon_tileset_path)
 
 class Abstract():
 
@@ -100,10 +116,14 @@ class Abstract():
         #self.screen = pygame.display.set_mode(UISettings().screen_size)
         #self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 
+        self.buffer_frames = 10
+
         #Monitor info for nice scalling:
         info = pygame.display.Info()
         monitor_width = info.current_w
         monitor_height = info.current_h
+
+        self.enemy_tileset_width_tiles = 8
 
         """IMPORTANTE: si llamamos dos "display" como screens toda crashea"""
         resize = 1
@@ -120,4 +140,6 @@ class Abstract():
             pygame.SCALED | pygame.FULLSCREEN ,
             vsync=1
             )
+
+        self.fps = 60
 

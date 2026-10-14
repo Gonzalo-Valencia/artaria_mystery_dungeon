@@ -2,6 +2,7 @@ import pygame
 import settings as st
 import game_functions as gf
 import random
+import render_screen as rs
 
 class Stairs():
 
@@ -30,13 +31,13 @@ class Weapon():
 class ItemChart():
 
     def __init__(self):
-        self.floor1 = ["Blackfire",
-                       "Whitefire",
-                       "A flower"
-                       #"Incinerate",
+        self.floor1 = [#"Blackfire",
+                       #"Whitefire",
+                       #"A flower",
+                       "Incinerate",
                        #"Soul Bind",
                        #"Reality Bend",
-                       #"Blaze of Madness"
+                       #"Living Rot"
                        ]
 
 class Item():
@@ -58,6 +59,37 @@ class Item():
             chara.hp += st.ItemSettings().whitefire_heal
         elif self.name == "A flower":
             chara.san += st.ItemSettings().flower_san_heal
+        elif self.name == "Incinerate":
+            incineration_tiles = gf.get_squares_in_front(chara.direction, dungeon, chara.rect)
+            fire_image = pygame.image.load(st.SpritePaths().fire_path)
+            for tile in incineration_tiles:
+                #dungeon.anim_list.append(rs.Animation(fire_image, tile, 30))
+                #dungeon.load_anims(rs.Animation(fire_image, tile), 30)
+                dungeon.load_anims(fire_image, tile, 30)
+
+                corpse = dungeon.rect_to_corpse(tile)
+                item = dungeon.rect_to_item(tile)
+                enemy = dungeon.rect_to_enemy(tile)
+                dungeon.screen.blit(fire_image, tile)
+                if corpse != None:
+                    dungeon.remove_corpse(corpse)
+                elif item != None:
+                    dungeon.remove_item(item)
+                elif enemy != None:
+                    dungeon.events.append(enemy.name + " received "
+                                          + str(st.ItemSettings().incinerate_dmg) +
+                                          " damage!")
+                    enemy.hp -= st.ItemSettings().incinerate_dmg
+        elif self.name == "Soul Bind":
+            enemy = chara.enemy_infront(dungeon)
+            if enemy != None:
+                enemy.paralyzed = True
+        elif self.name == "Reality Bend":
+            dungeon.recenter_dg(chara)
+        elif self.name == "Living Rot":
+            enemy = chara.enemy_infront(dungeon)
+            if enemy != None:
+                enemy.poisoned = True
 
 
 

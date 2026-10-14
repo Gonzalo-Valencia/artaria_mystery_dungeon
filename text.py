@@ -12,6 +12,17 @@ def render_text(screen, text:str, rect_tuple:tuple):
 
     screen.blit(text_surface, rect_tuple)
 
+def text_to_surface(text: str):
+    """Creates a text surface given the font in settings"""
+    myfont = st.UISettings().menu_font
+    font_color = st.UISettings().font_color
+
+    text_surface = myfont.render(text, 
+                                 False, font_color)
+
+    return text_surface
+
+
 def render_text_small(screen, text:str, rect_tuple:tuple):
     """Renders the text in the corner tuple (x,y)"""
     myfont = st.UISettings().small_font
