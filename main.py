@@ -15,8 +15,6 @@ import menu
 def run_game(clock, realscreen, canvas, game_canvas, i_canvas, text_canvas):
     # Make the character:
     chara = Chara(game_canvas)
-    # Make the background
-    bg = Background(game_canvas)
     # Make tileset
     #tileset = Tileset()
     tileset = st.Tilesets().dungeon_ts
@@ -28,15 +26,26 @@ def run_game(clock, realscreen, canvas, game_canvas, i_canvas, text_canvas):
     gameover = False
     # Start the main loop for the game.
     while gf.check_gameover(chara) == False:
-        print(int(clock.get_fps()))
+        #print(int(clock.get_fps()))
 
-        dungeon.dt = 60/clock.get_fps()
+        dungeon.dt = 60/max(clock.get_fps(),1)
 
+        dungeon.global_timer += dungeon.dt
+        if dungeon.global_timer >= 60:
+            pass
+        dungeon.global_timer = dungeon.global_timer%60
+
+        #print("updating screen...")
         rs.update_screen(realscreen, canvas, game_canvas, i_canvas, text_canvas, 
                          chara, tileset, dungeon)
+        #print("screen updated")
+
+        
         # Watch for keyboard and mouse events.
         if len(dungeon.anim_list[0]) == 0:
+            #print("checking events...")
             gf.check_events(dungeon, chara)
+            #print("events checked")
 
         clock.tick(120)
 
@@ -56,7 +65,7 @@ def main_menu(clock, realscreen, canvas, game_canvas, i_canvas, text_canvas):
     clock.tick(st.Abstract().fps)
 
     menu_thing = menu.Menu()
-    menu_thing.lines = ["Game Start", "Controls", "Quit"]
+    menu_thing.lines = ["Press any button to start!"]
 
 
     inmenu = True

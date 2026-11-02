@@ -8,7 +8,7 @@ import game_functions as gf
 def move(enemy, dungeon, chara):
         """Tries to move the enemy"""
         if enemy.paralyzed == False:
-            if gf.abs_distance(enemy.position, chara.rect) < 6*st.GameSettings().tile_size:
+            if gf.abs_distance(enemy.position, chara.position) < 6*st.GameSettings().tile_size:
                 #if theyre in aggro, the go to you
                 moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]
                 optimal = False
@@ -17,23 +17,26 @@ def move(enemy, dungeon, chara):
                     direction = random.choice(moves)
                     moves.remove(direction)
                     newrect = gf.predict_next_rect(direction, enemy.position)
-                    if (gf.abs_distance(newrect, chara.rect)
-                        < gf.abs_distance(enemy.position, chara.rect) and 
+                    if (gf.abs_distance(newrect, chara.position)
+                        < gf.abs_distance(enemy.position, chara.position) and 
                         gf.check_collission_future(direction, dungeon, enemy.position) == False
                         ):
                         #If its a legal move and they get close, they move. 
                         # if not, they dont do anything
-                        gf.move_any(gf.invert_direction(direction), enemy.position)
+                        gf.create_any_move_anim(direction, enemy, dungeon, "enemy")
+                        gf.move_any(gf.invert_direction(direction), enemy.position, dungeon)
+            
                         optimal = True
             else:
                 direction = random.choice([(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)])
                 
                 if gf.check_collission_future(direction, dungeon, enemy.position) == False:
-                    gf.move_any(gf.invert_direction(direction), enemy.position)
+                    gf.create_any_move_anim(direction, enemy, dungeon, "enemy")
+                    gf.move_any(gf.invert_direction(direction), enemy.position, dungeon)
 
 def flee(enemy, dungeon, chara):
         if enemy.paralyzed == False:
-            if gf.abs_distance(enemy.position, chara.rect) < 6*st.GameSettings().tile_size:
+            if gf.abs_distance(enemy.position, chara.position) < 6*st.GameSettings().tile_size:
                 #if theyre in aggro, the go to you
                 moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]
                 optimal = False
@@ -42,19 +45,21 @@ def flee(enemy, dungeon, chara):
                     direction = random.choice(moves)
                     moves.remove(direction)
                     newrect = gf.predict_next_rect(direction, enemy.position)
-                    if (gf.abs_distance(newrect, chara.rect)
-                        > gf.abs_distance(enemy.position, chara.rect) and 
+                    if (gf.abs_distance(newrect, chara.position)
+                        > gf.abs_distance(enemy.position, chara.position) and 
                         gf.check_collission_future(direction, dungeon, enemy.position) == False
                         ):
                         #If its a legal move and they get close, they move. 
                         # if not, they dont do anything
-                        gf.move_any(gf.invert_direction(direction), enemy.position)
+                        gf.create_any_move_anim(direction, enemy, dungeon, "enemy")
+                        gf.move_any(gf.invert_direction(direction), enemy.position, dungeon)
                         optimal = True
             else:
                 direction = random.choice([(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)])
                 
                 if gf.check_collission_future(direction, dungeon, enemy.position) == False:
-                    gf.move_any(gf.invert_direction(direction), enemy.position)
+                    gf.create_any_move_anim(direction, enemy, dungeon, "enemy")
+                    gf.move_any(gf.invert_direction(direction), enemy.position, dungeon)
 
 def attack(enemy, dungeon, chara):
     st.SFX().chara_attacked.play()
@@ -70,10 +75,10 @@ def normal_behaviour(enemy, dungeon, chara):
     for direction in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]:
         newrect = gf.predict_next_rect(direction, enemy.position)
         newdirection = direction
-        if chara.rect == newrect:
+        if chara.position == newrect:
             break
 
-    if chara.rect == newrect:
+    if chara.position == newrect:
         if newdirection in [(1,1), (-1,1), (1,-1), (-1,-1)]:
             if (gf.predict_next_rect((newdirection[0], 0), enemy.position) in dungeon.tiles and
                 gf.predict_next_rect((0, newdirection[1]), enemy.position) in dungeon.tiles):
@@ -107,9 +112,9 @@ def coward_behaviour(enemy, dungeon, chara):
         for direction in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]:
             newrect = gf.predict_next_rect(direction, enemy.position)
             newdirection = direction
-            if chara.rect == newrect:
+            if chara.position == newrect:
                 break
-        if chara.rect == newrect:
+        if chara.position == newrect:
             if newdirection in [(1,1), (-1,1), (1,-1), (-1,-1)]:
                 if (gf.predict_next_rect((newdirection[0], 0), enemy.position) in dungeon.tiles and
                     gf.predict_next_rect((0, newdirection[1]), enemy.position) in dungeon.tiles):
@@ -129,12 +134,6 @@ class Enemy():
                  behaviour = normal_behaviour, position = pygame.Rect(0,0,0,0),
                  ):
 
-
-        # Load the enemy image and get its rect.
-        self.image = pygame.image.load(st.SpritePaths().chara_path)
-        self.rect = self.image.get_rect()
-        
-
         self.name = name
         self.hp = hp
         self.max_hp = hp
@@ -142,6 +141,18 @@ class Enemy():
         self.id = e_id 
         self.position = position
 
+        self.images = pygame.Surface((st.GameSettings().tile_size, st.GameSettings().tile_size*4), pygame.SRCALPHA)
+        self.images.blit(st.Tilesets().enemy_ts.image, 
+                                (0,0), 
+                                st.Tilesets().enemy_ts.tiles[self.id])
+        self.images.blit(st.Tilesets().enemy_ts.image, 
+                        (0,st.GameSettings().tile_size), 
+                        st.Tilesets().enemy_ts.tiles[self.id+8])
+
+        self.image = pygame.Surface((st.GameSettings().tile_size, st.GameSettings().tile_size), pygame.SRCALPHA)
+        self.image.blit(st.Tilesets().enemy_ts.image, 
+                                (0,0), 
+                                st.Tilesets().enemy_ts.tiles[self.id])
         # Statuses ------------
         # Unable to move
         self.paralyzed = False
@@ -161,10 +172,10 @@ class EnemyChart():
 class Bestiary():
 
     def __init__(self):
-        self.slime = Enemy('slime', 1, 5, 0)
-        self.skelet = Enemy('skelet', 2, 10, 1)
-        self.mage = Enemy('mage', 4, 15, 2, behaviour=coward_behaviour)
-        self.dragon = Enemy('dragon', 6, 20, 3)
+        self.slime = Enemy('slime', 10, 5, 0)
+        self.skelet = Enemy('skelet', 20, 10, 1)
+        self.mage = Enemy('mage', 60, 15, 2, behaviour=coward_behaviour)
+        self.dragon = Enemy('dragon', 80, 20, 3)
 
         self.floor1 = [self.slime, self.skelet, self.mage, self.dragon]
 
@@ -182,7 +193,7 @@ def name_to_stats(name):
 def generate_enemies(dungeon):
     weight = 0
     generated_enemies = []
-    while weight < 17:
+    while weight < 16:
         #name_choice = random.choice(EnemyChart().floor1)
         #e_choice = name_to_stats(name_choice)
         e_choice = random.choice(Bestiary().floor1)
@@ -204,16 +215,18 @@ def render_enemies(dungeon, screen):
             enemy.anim_loop +=1
 
         if enemy.anim_loop <= 30:
-            cutout = st.Tilesets().enemy_ts.tiles[enemy.id+8]
+            #cutout = st.Tilesets().enemy_ts.tiles[enemy.id+8]
+            screen.blit(enemy.image, enemy.position, (0,st.GameSettings().tile_size))
         else:
-            cutout = st.Tilesets().enemy_ts.tiles[enemy.id]
+            #cutout = st.Tilesets().enemy_ts.tiles[enemy.id]
+            screen.blit(enemy.image, enemy.position, (0,st.GameSettings().tile_size))
 
 
-        screen.blit(st.Tilesets().enemy_ts.image, enemy.position, cutout)
+        #screen.blit(st.Tilesets().enemy_ts.image, enemy.position, cutout)
 
 class Corpse():
 
     def __init__(self, position):
 
-        self.image = pygame.image.load(st.SpritePaths().item_path)
+        self.images = pygame.image.load(st.SpritePaths().item_path)
         self.position = position

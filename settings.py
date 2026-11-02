@@ -22,6 +22,7 @@ class SpritePaths():
         self.cursor_full_path = 'ui_sprites/cursor_full.png'
         self.dungeon_tileset_path = 'map_sprites/dungeon_tileset.png'
         self.main_menu_path = 'ui_sprites/main_menu_placeholder.bmp'
+        self.floor_tiles_tileset_path = 'map_sprites/floor_tiles_tileset.bmp'
 
 class UISettings():
     #Definition of all the UI settings
@@ -43,12 +44,18 @@ class UISettings():
         self.bg_color = (0,0,0)
 
         #Text
-        self.menu_font = pygame.font.SysFont('Tiny5', 25)
-        self.small_font = pygame.font.SysFont('Tiny5', 16)
-        self.font_color = (245,245,245)
+        self.font_path_alt = "Tiny5.ttf"
+        self.font_path_alt_2 = "pix32.ttf"
+        self.font_path = "Perfect_DOS_VGA_437_Win.ttf"
+
+        self.menu_font = pygame.font.Font(self.font_path, 15)
+        self.small_font = pygame.font.Font(self.font_path, 16)
+        self.text_box_font = pygame.font.Font(self.font_path, 10)
+        self.font_color = (195,199,175)
         self.text_margin_left = GameSettings().tile_size+16
         self.text_margin_up = GameSettings().tile_size
         self.text_line_height = 30
+        self.text_box_line_height = 27
 
         self.mini_screen_margins_left = 16
         self.mini_screen_margins_up = 16
@@ -61,6 +68,8 @@ class UISettings():
 
         self.text_canvas_place = (17, 313)
 
+        self.minimap_place = (452, 21)
+
 
 class SFX():
 
@@ -72,6 +81,21 @@ class SFX():
         self.enemy_death = pygame.mixer.Sound("sfx/enemy_death.wav")
         self.menu_change = pygame.mixer.Sound("sfx/menu_change.wav")
         self.menu_select = pygame.mixer.Sound("sfx/menu_select.wav")
+        self.pickup = pygame.mixer.Sound("sfx/pickup.wav")
+        self.stairs = pygame.mixer.Sound("sfx/stairs.wav")
+        self.hit_wall = pygame.mixer.Sound("sfx/hit_wall.wav")
+        self.inventory_open = pygame.mixer.Sound("sfx/inventory_open.wav")
+
+        self.attack_nothing = pygame.mixer.Sound("sfx/attack_nothing.wav")
+        self.the_rot_dmg = pygame.mixer.Sound("sfx/the_rot_dmg.wav")
+        self.whitefire = pygame.mixer.Sound("sfx/whitefire.wav")
+        self.a_flower = pygame.mixer.Sound("sfx/a_flower.wav")
+        self.the_rot = pygame.mixer.Sound("sfx/the_rot.wav")
+        self.teleport = pygame.mixer.Sound("sfx/teleport.wav")
+
+        self.soul_bind = pygame.mixer.Sound("sfx/soul_bind.wav")
+        self.item_fail = pygame.mixer.Sound("sfx/item_fail.wav")
+        self.inventory_close = pygame.mixer.Sound("sfx/inventory_close.wav")
 
 
 class GameSettings():
@@ -80,6 +104,9 @@ class GameSettings():
 
         self.dungeon_dim = (30, 30) #cells per map
         self.tile_size = 32
+        self.dungeon_dim_pixels = (self.dungeon_dim[0]*self.tile_size,
+                                   self.dungeon_dim[1]*self.tile_size
+                                   )
         self.mov_keys = [pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN]
         self.mov_buttons = [ pygame.HAT_LEFT, pygame.HAT_DOWN, pygame.HAT_LEFTDOWN,
                             pygame.HAT_UP, pygame.HAT_LEFTUP, pygame.HAT_RIGHT,
@@ -109,6 +136,8 @@ class Tilesets():
         self.enemy_ts = e_tileset.EnemyTileset()
         self.chara_ts = ts.Tileset(SpritePaths().chara_tileset_path)
         self.dungeon_long_ts = ts.Long_Tileset(SpritePaths().dungeon_tileset_path)
+        #4 by 4, 16 in total
+        self.floor_tiles_tileset = ts.Tileset(SpritePaths().floor_tiles_tileset_path)
 
 class Abstract():
 

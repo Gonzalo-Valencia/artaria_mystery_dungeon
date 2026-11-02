@@ -6,6 +6,7 @@ import settings as st
 import game_functions as gf
 import text
 import render_screen as rs
+import game_items
 
 def update_flesh_page():
     """It updates the skills usable in the flesh page"""
@@ -28,18 +29,18 @@ class Chara():
         # Load the chara image and get its rect.
         #self.image = pygame.image.load(st.SpritePaths().chara_path)
         self.image = pygame.image.load(st.SpritePaths().chara_path)
-        self.rect = self.image.get_rect()
+        self.position = self.image.get_rect()
         self.screen_rect = screen.get_rect()
 
         self.tileset = st.Tilesets().chara_ts
 
         #Start each new character at the bottom center of the screen
 
-        #self.rect.centerx = self.screen_rect.width/2
-        #self.rect.centery = self.screen_rect.height/2
+        #self.position.centerx = self.screen_rect.width/2
+        #self.position.centery = self.screen_rect.height/2
 
-        self.rect.left = 6*st.GameSettings().tile_size
-        self.rect.top = 4*st.GameSettings().tile_size
+        self.position.left = 6*st.GameSettings().tile_size
+        self.position.top = 4*st.GameSettings().tile_size
 
         self.locked = False
         self.running = False
@@ -63,13 +64,14 @@ class Chara():
         # Used for automatic movement
         self.movement_counter = 0
 
+        self.equipped_weapon = game_items.Weapon("Fists", 0)
+
         self.hp = 60
         self.max_hp = 60
         self.san = 100
         self.max_san = 100
         self.hp_regen = 0.25
         self.san_anti_regen = 0.25
-        self.dmg = 1
 
         self.floor = 1
         self.floor_canvas = rs.render_floor_canvas(self)
@@ -93,6 +95,10 @@ class Chara():
         self.black_margins = pygame.image.load(st.SpritePaths().black_margins).convert_alpha()
         self.life_bars = pygame.image.load(st.SpritePaths().life_bars).convert_alpha()
 
+        self.inventory_extra = rs.render_inventory_extra()
+        self.inventory_extra_open = True
+
+
         self.life_bar_oclusor = pygame.Surface((0, 0))
         self.life_bar_oclusor_place = (0,0)
 
@@ -102,9 +108,18 @@ class Chara():
         # In which line the cursor is (starting from 1)
         self.cursor_position = 1
 
+        #Measures how much a character has moved
+        self.displacement = [0,0]
+        self.realposition = (0,0)
+
+    @property
+    def dmg(self):
+        return 15 + self.equipped_weapon.dmg
+
+
     def blitme_alt(self):
         """Draw the character at its current location."""
-        self.screen.blit(self.image, self.rect)
+        self.screen.blit(self.image, self.position)
 
     def blitme(self, screen):
         number = self.direction[0]+1+(self.direction[1]+1)*3
@@ -114,8 +129,8 @@ class Chara():
             number = 6
         cutout = self.tileset.tiles[number]
 
-
-        screen.blit(self.tileset.image, self.rect, cutout)
+        self.image = self.tileset.image
+        screen.blit(self.image, self.position, cutout)
 
     def get_direction_vector(self) -> tuple:
         if self.direction == pygame.K_UP:
@@ -145,12 +160,13 @@ class Chara():
         if enemy != None:
 
             if self.direction in [(1,1), (-1,1), (1,-1), (-1,-1)]:
-                if (gf.predict_next_rect((self.direction[0], 0), self.rect) in dungeon.tiles and
-                    gf.predict_next_rect((0, self.direction[1]), self.rect) in dungeon.tiles):
+                if (gf.predict_next_rect((self.direction[0], 0), self.position) in dungeon.tiles and
+                    gf.predict_next_rect((0, self.direction[1]), self.position) in dungeon.tiles):
                     self.do_damage(dungeon, enemy)
             else:
                 self.do_damage(dungeon, enemy)
         else:
+            #st.SFX().attack_nothing.play()
             dungeon.rerender_text_canvas("Chara attacked nothing!")
 
         self.a_pressed = True
@@ -164,7 +180,7 @@ class Chara():
 
     def enemy_infront(self, dungeon):
             charadir = self.direction
-            charapos = self.rect
+            charapos = self.position
             newrect = gf.predict_next_rect(charadir, charapos)
 
             enemy = dungeon.rect_to_enemy(newrect)
@@ -172,7 +188,7 @@ class Chara():
             return enemy
 
     def corpse_infront(self, dungeon):
-            newrect = gf.predict_next_rect(self.direction, self.rect)
+            newrect = gf.predict_next_rect(self.direction, self.position)
 
             corpse = dungeon.rect_to_corpse(newrect) 
 
@@ -181,18 +197,16 @@ class Chara():
     def use_item(self, dungeon):
 
         if self.cursor_position <= len(self.inventory):
-            st.SFX().menu_select.play()
-            item = self.inventory.pop(self.cursor_position-1)
-            print(item.name + " used!")
+            item = self.inventory[self.cursor_position-1]
             item.items_use(self, dungeon)
             self.inventory_canvas = rs.render_inventory_canvas(self)
 
     def in_danger(self, dungeon):
 
-        vicinity = gf.get_vicinity(self.rect)
-        vicinity.append(self.rect)
+        vicinity = gf.get_vicinity(self.position)
+        vicinity.append(self.position)
 
-        nextrect = gf.predict_next_rect(self.direction, self.rect)
+        nextrect = gf.predict_next_rect(self.direction, self.position)
         next_vicinity = gf.get_vicinity(nextrect)
         next_vicinity.append(nextrect)
 
@@ -239,6 +253,25 @@ class Chara():
                  vicinity[4] in dungeon.tiles)
                 ):         
                 return True
+        
+        
+        return False
+
+    def in_lesser_danger(self, dungeon):
+
+        vicinity = gf.get_vicinity(self.position)
+        vicinity.append(self.position)
+
+        nextrect = gf.predict_next_rect(self.direction, self.position)
+        next_vicinity = gf.get_vicinity(nextrect)
+        next_vicinity.append(nextrect)
+
+        #If theres an enemy close
+        if [rect for rect in dungeon.enemies_positions if rect in next_vicinity]:
+            return True
+        #Or the stairs
+        if nextrect in dungeon.edges_list:
+            return True
         
         
         return False

@@ -1,5 +1,6 @@
 import random
 import pygame
+from collections import defaultdict
 
 import game_functions as gf
 import settings as st
@@ -11,6 +12,8 @@ from collections import defaultdict
 class Dungeon():
 
     def __init__(self, screen, chara):
+
+        self.global_timer = 0
 
         self.screen = screen
         self.chara = chara
@@ -26,6 +29,7 @@ class Dungeon():
         self.tilesize = st.GameSettings().tile_size
 
         self.tileset = st.Tilesets().dungeon_long_ts
+        self.floor_tiles_tileset = st.Tilesets().floor_tiles_tileset
         
         self.dimensions = st.GameSettings().dungeon_dim
         #self.x_division = random.randint(2,8)
@@ -64,6 +68,15 @@ class Dungeon():
         self.walls_canvas = rs.render_dungeon_walls(self)
         self.game_canvas = pygame.Surface(st.UISettings().mini_screen_size, pygame.SRCALPHA)
         self.enemy_canvas = pygame.Surface(st.UISettings().mini_screen_size, pygame.SRCALPHA)
+        
+        
+        self.grass_tiles = {}
+        for i in range(16):
+            self.grass_tiles[i] = []
+        self.generate_grass_tiles()
+        
+        self.floor_tiles_canvas = rs.render_floor_tiles(self)
+        
         #self.edges_list=[]
         #self.edges_to_list()
 
@@ -100,7 +113,18 @@ class Dungeon():
         self.anim_list = defaultdict(list)
         self.anim_list[0] = []
 
+        self.minimap_canvas = rs.render_minimap(self)
+        # This second one is for things that change
+        # And is rerendered at the end of every frame
+        self.super_minimap_canvas = rs.render_super_minimap(self)
+
         # Pre rendered things
+
+    def generate_grass_tiles(self):
+        for tile in self.tiles:
+                    if random.random() <= 0.05:
+                        random_int = random.randrange(1,16)
+                        self.grass_tiles[random_int].append(tile)
 
 
     def rerender_text_canvas(self, message = ""):
@@ -109,8 +133,8 @@ class Dungeon():
             self.events.append(message)
         self.events_canvas = rs.render_text_canvas(self)
 
-    def load_anims(self, image, position, duration, frame = 0):
-        self.anim_list[frame].append(rs.Animation(image, position, duration))       
+    def load_anims(self, image, position, duration, anim_type, frame = 0):
+        self.anim_list[frame].append(rs.Animation(image, position, duration, anim_type))       
 
     def advance_anims_time(self, i, rest_list):
         new_rest_list = []
@@ -175,8 +199,22 @@ class Dungeon():
         
 
     def blit_anims(self):
+        for anim in self.anim_list[0]:
+            if anim.type == "enemy":
+                for anim2 in self.anim_list[0]:
+                    if anim2.type == "movement" and anim.adjusted == False:
+                        anim.adjusted = True
+                        charadir = self.chara.direction
+                        newleft = anim.position[0] + anim2.position[0] +charadir[0]*st.GameSettings().tile_size
+                        newtop = anim.position[1] + anim2.position[1] +charadir[1]*st.GameSettings().tile_size
+
+                        anim.position = (newleft,newtop)
+
+
+
         if len(self.anim_list[0]) != 0:
             for anim in self.anim_list[0]:
+                
                 self.game_canvas.blit(anim.image, anim.position)
 
             self.advance_anims()
@@ -553,7 +591,9 @@ class Dungeon():
         # 2. Moves the whole dungeon so that that position is the center
 
         chara_position = self.choose_position() # absolute relative desired position
-        screen_center = chara.rect # this is saved in chara position
+        chara.realposition = (chara_position.left, chara_position.top)
+        chara.displacement = [0,0]
+        screen_center = chara.position # this is saved in chara position
 
         h_mov = chara_position.left - screen_center.left
         v_mov = chara_position.top - screen_center.top
@@ -563,6 +603,12 @@ class Dungeon():
             game_object.centery -= v_mov
 
         self.walls_canvas = rs.render_dungeon_walls(self)
+        self.floor_tiles_canvas = rs.render_floor_tiles(self)
+
+
+        self.super_minimap_canvas = rs.render_super_minimap(self)
+        #self.dungeon_corner.left -= h_mov
+        #self.dungeon_corner.top -= v_mov
 
     def reset_dungeon(self, chara):
         # Collection of the rooms as rects
@@ -607,6 +653,13 @@ class Dungeon():
         self.item_positions = []
         self.item_positions_to_list()
 
+        self.grass_tiles = {}
+        for i in range(16):
+            self.grass_tiles[i] = []
+        self.generate_grass_tiles()
+        
+        self.floor_tiles_canvas = rs.render_floor_tiles(self)
+
         self.stairs = game_items.Stairs(self.game_canvas)
         self.stairs.position = self.choose_position()
 
@@ -618,6 +671,12 @@ class Dungeon():
         # List of corpses in the dungeon
         self.corpses = []
         self.corpses_positions = []
+
+
+        self.minimap_canvas = rs.render_minimap(self)
+        # This second one is for things that change
+        # And is rerendered at the end of every frame
+        self.super_minimap_canvas = rs.render_super_minimap(self)
 
         self.recenter_dg(chara)
 

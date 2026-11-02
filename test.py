@@ -90,7 +90,7 @@ print(f"{orc.name}: {orc.attack()}")  # Output: Orc: Raging combo attack!
                 def move(self, dungeon, chara):
         """Tries to move the enemy"""
 
-        if gf.abs_distance(self.position, chara.rect) < 6*st.GameSettings().tile_size:
+        if gf.abs_distance(self.position, chara.position) < 6*st.GameSettings().tile_size:
             #if theyre in aggro, the go to you
             moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]
             optimal = False
@@ -99,8 +99,8 @@ print(f"{orc.name}: {orc.attack()}")  # Output: Orc: Raging combo attack!
                 direction = random.choice(moves)
                 moves.remove(direction)
                 newrect = gf.predict_next_rect(direction, self.position)
-                if (gf.abs_distance(newrect, chara.rect)
-                     < gf.abs_distance(self.position, chara.rect) and 
+                if (gf.abs_distance(newrect, chara.position)
+                     < gf.abs_distance(self.position, chara.position) and 
                      gf.check_collission_future(direction, dungeon, self.position) == False
                      ):
                     #If its a legal move and they get close, they move. 
@@ -124,10 +124,10 @@ print(f"{orc.name}: {orc.attack()}")  # Output: Orc: Raging combo attack!
         """First it gets the chara rect in the vicinity"""
         for direction in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]:
             newrect = gf.predict_next_rect(direction, self.position)
-            if chara.rect == newrect:
+            if chara.position == newrect:
                 break
 
-        if chara.rect == newrect:
+        if chara.position == newrect:
             self.attack(dungeon, chara)
         else:
             # If it doesnt find chara, then

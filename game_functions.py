@@ -10,66 +10,86 @@ import render_screen as rs
 
 # ------------------------- Movement -------------------
 
-def move_any(direction, game_object):
+def move_any(direction, game_object, dungeon):
     """Moves the object contrary to the movement of the character"""
     # i.e. moves the background, tiles, etc
     # game_object must have a rect
     if isinstance(game_object, pygame.rect.Rect):
         game_object.centerx -= direction[0]*st.GameSettings().tile_size
         game_object.centery -= direction[1]*st.GameSettings().tile_size
-    else:
+    """     else:
         game_object.rect.centerx -= direction[0]*st.GameSettings().tile_size
-        game_object.rect.centery -= direction[1]*st.GameSettings().tile_size
+        game_object.rect.centery -= direction[1]*st.GameSettings().tile_size """
+
 
 def move_all_pre(direction, dungeon, chara):
     
     """moves all gameobjects movalbe (in dungeon.movables)"""
     """If theres no collision"""
     chara.mov_key_pressed = True
-    if check_collission_future(direction, dungeon, chara.rect):
+    if check_collission_future(direction, dungeon, chara.position):
+        st.SFX().hit_wall.play()
         pass
     else:
-        
+        dungeon.game_canvas.fill(st.UISettings().bg_color)
+        dungeon.game_canvas.blit(dungeon.floor_tiles_canvas, (0,0))
+        game_items.render_items(dungeon, dungeon.game_canvas)
+        dungeon.stairs.blitme()
+        dungeon.render_corpses()
+        dungeon.game_canvas.blit(dungeon.walls_canvas, (0,0))
+        create_move_anim(direction, dungeon)
         for game_object in dungeon.movables:
-            move_any(direction, game_object)
+            move_any(direction, game_object, dungeon)
+
+        chara.displacement[0] += direction[0]*st.GameSettings().tile_size
+        chara.displacement[1] += direction[1]*st.GameSettings().tile_size
 
     return dungeon
 
 def move_all(direction, dungeon, chara):
 
-    create_move_anim(direction, dungeon)
+    
 
     post_dungeon = move_all_pre(direction, dungeon, chara)
     dungeon.walls_canvas = rs.render_dungeon_walls(post_dungeon)
+    dungeon.floor_tiles_canvas = rs.render_floor_tiles(dungeon)
 
 def create_move_anim(direction, dungeon):
-    dx = direction[0]*st.GameSettings().tile_size
-    
-    dy = direction[1]*st.GameSettings().tile_size
+    if dungeon.chara.running == False:
+        dx = direction[0]*st.GameSettings().tile_size
+        
+        dy = direction[1]*st.GameSettings().tile_size
 
-    false_image = pygame.Surface(st.UISettings().mini_screen_size, pygame.SRCALPHA)
+        false_image = pygame.Surface(st.UISettings().mini_screen_size, pygame.SRCALPHA)
 
-    false_image.blit(dungeon.game_canvas, (0,0))
+        false_image.blit(dungeon.game_canvas, (0,0))
 
-    for i in range(1,6):
-        tile = (-dx*i/5, -dy*i/5)
+        for i in range(1,6):
+            tile = (-dx*i/5, -dy*i/5)
 
-        dungeon.load_anims(false_image, tile, 3, i-1)
+            dungeon.load_anims(false_image, tile, 3, "movement", i-1)
 
-def create_any_move_anim(direction, game_object, dungeon):
-    """Creates a movement animation of any game object"""
-    dx = direction[0]*st.GameSettings().tile_size
-    
-    dy = direction[1]*st.GameSettings().tile_size
+def create_any_move_anim(direction, game_object, dungeon, anim_type):
+    if dungeon.chara.running == False:
+        """Creates a movement animation of any game object"""
+        dx = direction[0]*st.GameSettings().tile_size
+        
+        dy = direction[1]*st.GameSettings().tile_size
 
-    image = game_object.sprite
+        center = dungeon.chara.position
 
-    position = game_object.position
+        image = game_object.image
 
-    for i in range(1,6):
-        tile = (position.left-dx*i/5, position.right-dy*i/5)
+        position = game_object.position
 
-        dungeon.load_anims(image, tile, 3, i-1)
+        #print(game_object.name + " position's is " + str(game_object.position.left/32) + ", " + str(game_object.position.top/32))
+        #print("charas position's is " + str(center.left/32) + ", " + str(center.top/32))
+        for i in range(1,6):
+
+            tile = (position.left+dx*i/5, position.top+dy*i/5)
+            #print(tile)
+
+            dungeon.load_anims(image, tile, 3, anim_type, i-1)
 
 
 # ------------------------- Check keys and buttons -------------------
@@ -135,8 +155,10 @@ def check_events(dungeon, chara):
             check_buttonup_events(event, dungeon, chara)
         elif (event.type == pygame.KEYDOWN or pygame.JOYBUTTONDOWN or pygame.JOYHATMOTION):
             optimitation_function(event,dungeon, chara)
-    if chara.mov_key_pressed:
+    if chara.mov_key_pressed and chara.running == False:
         if chara.direction in [(0,1),(1,0),(-1,0),(0,-1)] and chara.diagonal_locked == True:
+            pass
+        elif chara.in_lesser_danger(dungeon):
             pass
         elif chara.has_moved_this_turn == False:
             move_all(chara.direction, dungeon, chara)
@@ -216,6 +238,7 @@ def check_keydown_events(event, dungeon, chara):
     elif event.key == pygame.K_r:
         chara.running = True
     elif event.key == pygame.K_p:
+        st.SFX().inventory_open.play()
         chara.inventory_open = True
         chara.inventory_canvas = rs.render_inventory_canvas(chara)
     elif event.key == pygame.K_t:
@@ -232,6 +255,7 @@ def check_buttondown_events(event, dungeon, chara):
         chara.running = True
     elif event.button == 3:
         chara.inventory_open = True
+        st.SFX().inventory_open.play()
         chara.inventory_canvas = rs.render_inventory_canvas(chara)
     elif event.button == 5:
         chara.diagonal_locked = True
@@ -283,12 +307,14 @@ def check_keydown_events_inventory(event, dungeon, chara):
             chara.cursor_position = 1
     elif event.key == pygame.K_ESCAPE or event.key == pygame.K_p:
         chara.inventory_open = False
+        st.SFX().inventory_close.play()
 
     chara.inventory_canvas = rs.render_inventory_canvas(chara)
 
 def check_buttondown_events_inventory(event, dungeon, chara):
 
     if event.button == 0:
+        st.SFX().inventory_close.play()
         chara.inventory_open = False
     if event.button == 1:
         chara.use_item(dungeon)
@@ -387,14 +413,16 @@ def check_passive_events(dungeon, chara):
     if chara.san > chara.max_san:
         chara.san = chara.max_san
 
-    if chara.rect in dungeon.item_positions:
-        item = dungeon.rect_to_item(chara.rect)
+    if chara.position in dungeon.item_positions:
+        st.SFX().pickup.play()
+        item = dungeon.rect_to_item(chara.position)
         chara.inventory.append(item)
         chara.inventory_canvas = rs.render_inventory_canvas(chara)
 
         dungeon.remove_item(item)
 
-    if chara.rect == dungeon.stairs.position:
+    if chara.position == dungeon.stairs.position:
+        st.SFX().stairs.play()
         dungeon.reset_dungeon(chara)
         chara.floor += 1
         chara.floor_canvas = rs.render_floor_canvas(chara)
@@ -404,12 +432,15 @@ def check_outside_events(dungeon, chara):
 
     for enemy in dungeon.enemies:
         if enemy.poisoned:
+            st.SFX().the_rot_dmg.play()
             enemy.hp -= st.ItemSettings().rot_dmg
             
         if enemy.hp <= 0:
             dungeon.remove_enemy(enemy)
         else:
             enemy.act(dungeon, chara)
+
+    dungeon.super_minimap_canvas = rs.render_super_minimap(dungeon)
 
     if chara.hp <= 0 or chara.san <= 0:
         st.SFX().chara_death.play()
@@ -522,7 +553,7 @@ def predict_next_rect(direction, rect):
 
 def check_collission_future(direction, dungeon, rect):
         """Checks collission given a direction"""
-        collisionables = (dungeon.enemies_positions + [dungeon.chara.rect] +
+        collisionables = (dungeon.enemies_positions + [dungeon.chara.position] +
                           dungeon.corpses_positions
                           )
         nextrect = predict_next_rect(direction, rect)
